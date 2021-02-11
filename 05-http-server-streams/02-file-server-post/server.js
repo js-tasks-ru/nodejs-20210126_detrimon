@@ -54,10 +54,9 @@ server.on('request', (req, res) => {
       req.on('error', err => {
         console.log('REQ ERROR::: ', err.code);
         if (err.code = 'ECONNRESET') {
-          fs.unlink(filepath, () => {
-            res.statusCode = 500;
-            res.end('CONNECTION RESET');            
-          });
+          res.statusCode = 500;
+          res.end('CONNECTION RESET'); 
+          fs.unlink(filepath, () => {});
         } else {
           res.statusCode = 500;
           res.end('500');
@@ -65,19 +64,16 @@ server.on('request', (req, res) => {
       });
 
       req.on('aborted', () => {
-        fs.unlink(filepath, () => {
-          res.statusCode = 500;
-          res.end('CONNECTION ABORTED');
-        });
+        res.statusCode = 500;
+        res.end('CONNECTION ABORTED');
+        fs.unlink(filepath, () => {});
       })
 
       myTransformStream.on('error', err => {
         if (err.code = 'LIMIT_EXCEEDED') {  
-          fs.unlink(filepath, (e) => {
-            
-            res.statusCode = 413;
-            res.end('413');
-          });
+          res.statusCode = 413;
+          res.end('413');
+          fs.unlink(filepath, () => {});
         } else {
           res.statusCode = 500;
           res.end('SOMETHING WRONG..');
