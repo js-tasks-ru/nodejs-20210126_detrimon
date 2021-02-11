@@ -8,7 +8,6 @@ const server = new http.Server();
 
 server.on('request', (req, res) => {
   const pathname = url.parse(req.url).pathname.slice(1);
-
   const filepath = path.join(__dirname, 'files', pathname);
 
   switch (req.method) {
@@ -23,46 +22,65 @@ server.on('request', (req, res) => {
       let myTransformStream = new LimitSizeStream({limit: 1048576});
       let file = fs.createWriteStream(filepath, {flags: 'wx'});
 
-      req.pipe(myTransformStream).pipe(file)
-        .on('error', err => {
-          if (err.code === 'ENOENT') {
-            res.statusCode = 404;
-            res.end();
-          }
-          if (err.code === 'EEXIST') {
-            res.statusCode = 409;
-            file.destroy();
-            res.end();
-          }
-        })
-        .on('finish', () => {
-          res.statusCode = 201;
-          res.end();
-        })
-        .on('close', () => {
-          console.log(pathname, ' CLOSED');
-        })
+      req.pipe(myTransformStream).pipe(file);
+      
+      file.on('error', err => {
+        console.log('FILE ERROR::: ', err.code);
+        if (err.code === 'ENOENT') {
+          console.log('404 - NOT FOUND...')
+          res.statusCode = 404;
+          res.end('NOT FOUND');
+          return;
+        }
+        if (err.code === 'EEXIST') {
+          console.log('409 - NOT EXIST...')
+          res.statusCode = 409;
+          res.end('NOT EXIST');
+          return;
+        }
+
+        console.log('500 - INTERNAL ERROR...')
+        res.statusCode = 500;
+        res.end('INTERNAL ERROR');
+      })
+
+      file.on('finish', () => {
+        console.log('201 - FILE CREATED')
+        res.statusCode = 201;
+        res.end('201');
+      })
 
 
-        req.on('error', err => {
-          if (err.code = 'ECONNRESET') {
-            fs.unlink(filepath, err => {
-              if (err) throw err;
-              file.end();
-              // myTransformStream.destroy();
-              res.end();            
-            });
-          }
+      req.on('error', err => {
+        console.log('REQ ERROR::: ', err.code);
+        if (err.code = 'ECONNRESET') {
+          fs.unlink(filepath, () => {
+            res.statusCode = 500;
+            res.end('CONNECTION RESET');            
+          });
+        } else {
+          res.statusCode = 500;
+          res.end('500');
+        }
+      });
+
+      req.on('aborted', () => {
+        fs.unlink(filepath, () => {
+          res.statusCode = 500;
+          res.end('CONNECTION ABORTED');
         });
+      })
 
       myTransformStream.on('error', err => {
-        if (err.code = 'LIMIT_EXCEEDED') {          
-          fs.unlink(filepath, err => {
-            if (err) throw err;
+        if (err.code = 'LIMIT_EXCEEDED') {  
+          fs.unlink(filepath, (e) => {
+            
+            res.statusCode = 413;
+            res.end('413');
           });
-          file.end();
-          res.statusCode = 413;
-          res.end();
+        } else {
+          res.statusCode = 500;
+          res.end('SOMETHING WRONG..');
         }
       })
 
