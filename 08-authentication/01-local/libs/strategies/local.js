@@ -3,20 +3,23 @@ const User = require('../../models/User');
 
 module.exports = new LocalStrategy(
     {usernameField: 'email', session: false},
-    function(email, password, done) {
-      console.log(email, password);
-      User.findOne({'email': email}, function(err, account) {
-        if (err) return done(err);
+    async function(email, password, done) {
+      try {
+        let account = await User.findOne({'email': email});
 
         if (!account) {          
-          return done(err, false, 'Нет такого пользователя');
+          return done(null, false, 'Нет такого пользователя');
         }
 
-        account.checkPassword(password).then(isPasswordValid => {
-          if (!isPasswordValid) return done(err, false, 'Неверный пароль');
-          done(null, account);
-        });
-      })
+        let isPasswordValid = await account.checkPassword(password);
 
+        if (!isPasswordValid) {
+          return done(null, false, 'Неверный пароль');
+        }
+
+        done(null, account);
+      } catch (err) {
+        if (err) return done(err);
+      }
     },
 );
