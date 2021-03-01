@@ -11,14 +11,11 @@ module.exports = function authenticate(strategy, email, displayName, done) {
 
       let oDocument = {'email': email, 'displayName': displayName};
 
-      User.create(oDocument)
-          .then(user => done(null, user))
-          .catch(err => done(err))
+      User.create(oDocument).then(user => done(null, user))
     })
     .catch (err => {
-      console.log(err);
+      done(err);
     })
-
 
   // Если пользователя нет в базе, то создаем для пользователя новый документ в базе и аутентифицируем после создания.
   // done(null, false, `функция аутентификации с помощью ${strategy} не настроена`);
