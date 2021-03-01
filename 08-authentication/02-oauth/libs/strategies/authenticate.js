@@ -11,9 +11,10 @@ module.exports = function authenticate(strategy, email, displayName, done) {
 
       let oDocument = {'email': email, 'displayName': displayName};
 
-      User.create(oDocument).then(user => done(null, user))
+      return User.create(oDocument)
+        .then(user => done(null, user))
     })
-    .catch (err => {
+    .catch(err => {
       done(err);
     })
 
