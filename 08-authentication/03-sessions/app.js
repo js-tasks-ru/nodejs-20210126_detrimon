@@ -3,6 +3,7 @@ const Koa = require('koa');
 const Router = require('koa-router');
 const Session = require('./models/Session');
 const { v4: uuid } = require('uuid');
+const { validate: uuidValidate } = require('uuid');
 const handleMongooseValidationError = require('./libs/validationErrors');
 const mustBeAuthenticated = require('./libs/mustBeAuthenticated');
 const {login} = require('./controllers/login');
@@ -32,7 +33,12 @@ app.use(async (ctx, next) => {
 app.use((ctx, next) => {
   ctx.login = async function(user) {
     const token = uuid();
-
+    try {
+      await Session.create({'token': token, 'lastVisit': new Date(), 'user': user});
+    } catch(err) {
+      ctx.throw(500);
+    }
+    
     return token;
   };
 
@@ -45,6 +51,24 @@ router.use(async (ctx, next) => {
   const header = ctx.request.get('Authorization');
   if (!header) return next();
 
+  let token = header.split(' ')[1];
+  if (!token) return next();
+
+  try {
+    let session = await Session.findOne({'token': token}).populate('user');
+    if (!session) {
+      ctx.status = 401;
+      ctx.body = {error: 'Неверный аутентификационный токен'};
+      return;
+    }
+
+    await Session.updateOne({ '_id': session._id }, { $set: { 'lastVisit': new Date() }});
+    ctx.user = session.user;
+  } catch(err) {
+    console.log(err);
+    ctx.throw(500);
+  }
+
   return next();
 });
 
@@ -53,7 +77,7 @@ router.post('/login', login);
 router.get('/oauth/:provider', oauth);
 router.post('/oauth_callback', handleMongooseValidationError, oauthCallback);
 
-router.get('/me', me);
+router.get('/me', mustBeAuthenticated, me);
 
 app.use(router.routes());
 
